@@ -73,7 +73,8 @@
 
     <script>
         const modal = document.getElementById('bookingModal');
-        const API_BASE = "http://localhost:3000"; 
+        // FIX: localhost ko hata kar relative path set kar diya taake Railway par chale
+        const API_BASE = ""; 
         let allDoctors = []; 
 
         function openModal() { modal.style.display = 'flex'; }
@@ -92,6 +93,7 @@
                     select.add(opt);
                 });
             } catch (err) {
+                console.error("Fetch Error:", err);
                 alert("Doctors load nahi ho sakay!");
             }
         };
@@ -115,25 +117,29 @@
                 phone: document.getElementById('pPhone').value,
                 dob: document.getElementById('pDOB').value,
                 age: document.getElementById('pAge').value,
-                gender: document.getElementById('pGender').value, // Added gender
+                gender: document.getElementById('pGender').value,
                 doctor_id: document.getElementById('docSelect').value,
                 date: document.getElementById('appDate').value,
                 time: document.getElementById('appTime').value
             };
 
-            if(!data.gender) {
-                alert("Please select gender!");
+            if(!data.gender || !data.doctor_id) {
+                alert("Please fill all fields!");
                 return;
             }
 
-            const res = await fetch(`${API_BASE}/api/full-booking`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const result = await res.json();
-            alert(result.message);
-            location.reload();
+            try {
+                const res = await fetch(`${API_BASE}/api/full-booking`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                alert(result.message);
+                location.reload();
+            } catch (err) {
+                alert("Booking fail ho gayi!");
+            }
         }
     </script>
 </body>
