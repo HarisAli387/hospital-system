@@ -1,7 +1,8 @@
-require('dotenv').config(); // Sab se upar ye lazmi hai
+require('dotenv').config(); 
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+const path = require('path'); // Fix 1: Path module add kiya
 
 const app = express();
 app.use(express.json());
@@ -9,7 +10,6 @@ app.use(express.static('public'));
 app.use(cors());
 
 // --- TiDB Cloud Configuration ---
-// Ab hum passwords seedha nahi likh rahe, .env se utha rahe hain
 const db = mysql.createConnection({
     host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
     port: 4000,
@@ -26,10 +26,18 @@ db.connect(err => {
     else console.log("TiDB Cloud Database connected successfully.");
 });
 
-// --- ADMIN LOGIN ROUTE (Naya) ---
+// --- FRONTEND ROUTES (Fix 2: Vercel ke liye routes set kiye) ---
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// --- ADMIN LOGIN ROUTE ---
 app.post('/api/admin/login', (req, res) => {
     const { password } = req.body;
-    // Password .env file se check ho raha hai
     if (password === process.env.ADMIN_PASSWORD) {
         res.json({ success: true, message: "Login Successful" });
     } else {
