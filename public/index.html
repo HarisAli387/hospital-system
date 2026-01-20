@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Care Hospital Portal</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f7f6; display: flex; flex-direction: column; min-height: 100vh; }
+        .hero { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=1000'); background-size: cover; color: white; text-align: center; }
+        .btn-main { padding: 15px 40px; background: #28a745; color: white; border: none; border-radius: 50px; cursor: pointer; font-size: 1.2rem; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 550px; position: relative; max-height: 90vh; overflow-y: auto; color: #333; }
+        .close { position: absolute; right: 20px; top: 15px; font-size: 24px; cursor: pointer; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+        .info-box { background: #e9ecef; padding: 15px; border-radius: 8px; font-size: 0.9rem; margin: 10px 0; color: #333; border-left: 5px solid #007bff; }
+        .submit-btn { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+        footer { text-align: center; padding: 20px; background: #2c3e50; color: white; }
+        footer a { color: #555; text-decoration: none; font-size: 0.7rem; display: block; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="hero">
+        <h1>City Care Hospital</h1>
+        <p>Expert Doctors | 24/7 Care | Instant Booking</p>
+        <button class="btn-main" onclick="openModal()">Book An Appointment</button>
+    </div>
+
+    <div class="modal" id="bookingModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 style="text-align: center; color: #007bff;">Patient Registration</h2>
+            
+            <input type="text" id="pName" placeholder="Full Name">
+            <input type="email" id="pEmail" placeholder="Email Address">
+            <input type="text" id="pPhone" placeholder="Phone Number">
+            
+            <div style="display: flex; gap: 10px;">
+                <input type="date" id="pDOB">
+                <input type="number" id="pAge" placeholder="Age">
+            </div>
+
+            <select id="pGender">
+                <option value="">-- Select Gender --</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <hr>
+
+            <label><b>Select Doctor:</b></label>
+            <select id="docSelect" onchange="updateDocInfo()">
+                <option value="">-- Loading Doctors... --</option>
+            </select>
+
+            <div id="docDetail" class="info-box">Doctor select karein details dekhne ke liye.</div>
+
+            <div style="display: flex; gap: 10px;">
+                <input type="date" id="appDate">
+                <input type="time" id="appTime">
+            </div>
+
+            <button class="submit-btn" onclick="submitBooking()">Confirm Appointment</button>
+        </div>
+    </div>
+
+    <footer>
+        <p style="margin: 0;">&copy; 2026 City Care Hospital. All Rights Reserved.</p>
+        <a href="admin.html">Staff Login</a>
+    </footer>
+
+    <script>
+        const modal = document.getElementById('bookingModal');
+        const API_BASE = "http://localhost:3000"; 
+        let allDoctors = []; 
+
+        function openModal() { modal.style.display = 'flex'; }
+        function closeModal() { modal.style.display = 'none'; }
+
+        window.onload = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/doctors-list`);
+                allDoctors = await res.json();
+                const select = document.getElementById('docSelect');
+                select.innerHTML = '<option value="">-- Choose Doctor --</option>';
+                allDoctors.forEach(doc => {
+                    const opt = document.createElement('option');
+                    opt.value = doc.id;
+                    opt.text = `${doc.name} (${doc.specialization})`;
+                    select.add(opt);
+                });
+            } catch (err) {
+                alert("Doctors load nahi ho sakay!");
+            }
+        };
+
+        function updateDocInfo() {
+            const id = document.getElementById('docSelect').value;
+            const doctor = allDoctors.find(d => d.id == id);
+            const infoBox = document.getElementById('docDetail');
+            if(doctor) {
+                infoBox.innerHTML = `<strong>Specialist:</strong> ${doctor.description}<br>
+                                     <strong>Fees:</strong> Rs. ${doctor.fees} | <strong>Timing:</strong> ${doctor.timing}`;
+            } else {
+                infoBox.innerHTML = "Doctor select karein details dekhne ke liye.";
+            }
+        }
+
+        async function submitBooking() {
+            const data = {
+                name: document.getElementById('pName').value,
+                email: document.getElementById('pEmail').value,
+                phone: document.getElementById('pPhone').value,
+                dob: document.getElementById('pDOB').value,
+                age: document.getElementById('pAge').value,
+                gender: document.getElementById('pGender').value, // Added gender
+                doctor_id: document.getElementById('docSelect').value,
+                date: document.getElementById('appDate').value,
+                time: document.getElementById('appTime').value
+            };
+
+            if(!data.gender) {
+                alert("Please select gender!");
+                return;
+            }
+
+            const res = await fetch(`${API_BASE}/api/full-booking`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            alert(result.message);
+            location.reload();
+        }
+    </script>
+</body>
+</html>
