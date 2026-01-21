@@ -2,14 +2,17 @@ require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
-const path = require('path'); // Fix 1: Path module add kiya
+const path = require('path');
 
 const app = express();
+
+// Middleware
 app.use(express.json());
-app.use(express.static('public')); 
 app.use(cors());
+app.use(express.static('public')); // Ye line 'public' folder ki files (index, login etc) ko host karti hai
 
 // --- TiDB Cloud Configuration ---
+// Note: Railway variables se password uthayega
 const db = mysql.createConnection({
     host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
     port: 4000,
@@ -18,24 +21,32 @@ const db = mysql.createConnection({
     database: 'test',
     ssl: {
         rejectUnauthorized: false
+    },
+    connectTimeout: 20000 // Connection timeout barha diya taake cloud par masla na ho
+});
+
+// Database Connect karein
+db.connect(err => {
+    if (err) {
+        console.error("❌ TiDB Connection Error: " + err.message);
+    } else {
+        console.log("✅ TiDB Cloud Database connected successfully.");
     }
 });
 
-db.connect(err => {
-    if (err) console.error("TiDB Connection Error: " + err.message);
-    else console.log("TiDB Cloud Database connected successfully.");
-});
+// --- ROUTES ---
 
-// --- FRONTEND ROUTES (Fix 2: Vercel ke liye routes set kiye) ---
+// 1. Home Route (Main Page)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// 2. Login Page Route
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// --- ADMIN LOGIN ROUTE ---
+// 3. Admin Login API
 app.post('/api/admin/login', (req, res) => {
     const { password } = req.body;
     if (password === process.env.ADMIN_PASSWORD) {
@@ -45,15 +56,18 @@ app.post('/api/admin/login', (req, res) => {
     }
 });
 
-// 1. Doctors list
+// 4. Doctors list fetch karein
 app.get('/api/doctors-list', (req, res) => {
     db.query("SELECT * FROM doctors", (err, results) => {
-        if (err) return res.status(500).json(err);
+        if (err) {
+            console.error("DB Query Error:", err);
+            return res.status(500).json({ error: "Database query failed" });
+        }
         res.json(results);
     });
 });
 
-// 2. Admin Dashboard Data
+// 5. Admin Dashboard Data
 app.get('/api/admin/bookings', (req, res) => {
     const sql = `
         SELECT a.id, p.name as pName, p.email, p.gender, p.age, d.name as dName, a.appointment_date, a.appointment_time, a.status 
@@ -67,7 +81,7 @@ app.get('/api/admin/bookings', (req, res) => {
     });
 });
 
-// 3. Mukammal Booking
+// 6. Mukammal Booking (Patient + Appointment)
 app.post('/api/full-booking', (req, res) => {
     const { name, phone, email, dob, age, gender, doctor_id, date, time } = req.body;
     
@@ -89,30 +103,28 @@ app.post('/api/full-booking', (req, res) => {
     });
 });
 
-// 4. Status Update Route
+// 7. Status Update API
 app.post('/api/admin/update-status', (req, res) => {
     const { id, status } = req.body;
     const query = "UPDATE appointments SET status = ? WHERE id = ?";
     db.query(query, [status, id], (err, result) => {
-        if (err) {
-            console.error("Database error:", err);
-            return res.status(500).json({ message: "Database update failed" });
-        }
+        if (err) return res.status(500).json({ message: "Database update failed" });
         res.json({ message: `Appointment successfully ${status}!` });
     });
 });
 
-// 5. DELETE Route
+// 8. Delete Booking API
 app.delete('/api/admin/delete-booking/:id', (req, res) => {
     const id = req.params.id;
     const query = "DELETE FROM appointments WHERE id = ?";
     db.query(query, [id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: "Database delete failed" });
-        }
+        if (err) return res.status(500).json({ message: "Database delete failed" });
         res.json({ message: "Appointment successfully deleted!" });
     });
 });
 
+// --- SERVER START ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+});
